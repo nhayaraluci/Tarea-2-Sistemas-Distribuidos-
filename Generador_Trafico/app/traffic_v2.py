@@ -1,9 +1,12 @@
-import requests
+from kafka import KafkaProducer
 import random
 import time
-import matplotlib.pyplot as plt
+import json
 
-CACHE_URL = "http://cache-service:8000/query"
+producer = KafkaProducer(
+    bootstrap_servers='kafka:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
 
 zones = ["Z1", "Z2", "Z3", "Z4", "Z5"]
 query_types = ["Q1", "Q2", "Q3", "Q4", "Q5"]
@@ -20,6 +23,7 @@ def generate_uniform():
 
 def generate_zipf():
     weights = [0.5, 0.2, 0.15, 0.1, 0.05]
+
     zone = random.choices(zones, weights=weights)[0]
 
     return {
@@ -31,64 +35,26 @@ def generate_zipf():
 
 
 def run(mode="uniform"):
-    hits = 0
-    misses = 0
 
-    x_points = []
-    y_points = []
+    print("🚦 Kafka Producer iniciado\n")
 
     for i in range(600):
 
         query = generate_zipf() if mode == "zipf" else generate_uniform()
 
         try:
-            r = requests.post(CACHE_URL, json=query)
 
-            if r.status_code != 200:
-                print(f"{i+1}/100 ERROR {r.status_code}")
-                continue
+            producer.send("queries", query)
 
-            data = r.json()
-
-            if data.get("source") == "cache":
-                hits += 1
-                y_points.append(1)
-                label = "HIT"
-            else:
-                misses += 1
-                y_points.append(0)
-                label = "MISS"
-
-            x_points.append(i)
-
-            print(f"{i+1}/100 OK → {label}")
+            print(f"{i+1}/600 enviada → {query}")
 
         except Exception as e:
             print("error:", e)
 
         time.sleep(0.1)
 
-    print(f"\nTotal Hits: {hits}")
-    print(f"Total Misses: {misses}")
-    print(f"Hit Rate: {hits / (hits + misses):.2f}")
-
-    draw(x_points, y_points)
-
-
-def draw(x_points, y_points):
-    plt.figure()
-
-    plt.scatter(x_points, y_points, alpha=0.6)
-
-    plt.title(f"Cache performance ({len(x_points)} requests)")
-    plt.xlabel("Request")
-    plt.ylabel("Hit/Miss")
-
-    plt.yticks([0, 1], ["Miss", "Hit"])
-
-    plt.savefig("/app/metrics.png")
-    print("Gráfico guardado en /app/metrics.png")
+    print("\n✅ Todas las consultas fueron enviadas a Kafka")
 
 
 if __name__ == "__main__":
-    run("zipf")  # cambia a "uniform" si quieres o zipf
+    run("zipf")  # o "uniform"

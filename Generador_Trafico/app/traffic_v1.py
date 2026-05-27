@@ -1,9 +1,12 @@
-import requests
+from kafka import KafkaProducer
 import random
 import time
-import matplotlib.pyplot as plt
+import json
 
-URL = "http://cache-service:8000/query"
+producer = KafkaProducer(
+    bootstrap_servers='kafka:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
 
 ZONES = ["Z1", "Z2", "Z3", "Z4", "Z5"]
 QUERIES = ["Q1", "Q2", "Q3", "Q4", "Q5"]
@@ -36,69 +39,22 @@ def random_query():
 
 
 def run(mode="uniform", n_requests=100):
-    print("🚦 Traffic generator iniciado\n")
 
-    hits = 0
-    misses = 0
-
-    x_points = []
-    y_points = []
+    print("🚦 Kafka Producer iniciado\n")
 
     for i in range(n_requests):
+
         payload = random_query()
 
         try:
-            r = requests.post(URL, json=payload)
+            producer.send("queries", payload)
 
-            if r.status_code != 200:
-                print(f"{i+1}/{n_requests} ERROR {r.status_code}")
-                continue
-
-            data = r.json()
-
-            if data.get("source") == "cache":
-                hits += 1
-                y_points.append(1)
-                label = "HIT"
-            else:
-                misses += 1
-                y_points.append(0)
-                label = "MISS"
-
-            x_points.append(i)
-
-            print(f"{i+1}/{n_requests} OK → {label}")
+            print(f"{i+1}/{n_requests} enviada → {payload}")
 
         except Exception as e:
             print("Error:", e)
 
         time.sleep(0.1)
-
-    total = hits + misses
-
-    print("\n📊 Resultados:")
-    print(f"Total requests: {total}")
-    print(f"Hits: {hits}")
-    print(f"Misses: {misses}")
-    print(f"Hit Rate: {hits / total:.2f}" if total > 0 else "Hit Rate: 0")
-
-    print("\n📊 Generando gráfico...\n")
-    draw(x_points, y_points)
-
-
-def draw(x_points, y_points):
-    plt.figure()
-
-    plt.scatter(x_points, y_points, alpha=0.6)
-
-    plt.title(f"Cache behavior ({len(x_points)} requests)")
-    plt.xlabel("Query index")
-    plt.ylabel("Result")
-
-    plt.yticks([0, 1], ["Miss", "Hit"])
-
-    plt.savefig("/app/metrics.png")
-    print("Gráfico guardado en /app/metrics.png")
 
 
 if __name__ == "__main__":
