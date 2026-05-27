@@ -1,0 +1,27 @@
+services:
+
+  response-generator:
+    build: ../Consultas
+    container_name: response-generator
+    ports:
+      - "8001:8001"
+
+  cache-service:
+    build: .
+    container_name: cache-service
+    ports:
+      - "8000:8000"
+    depends_on:
+      - response-generator
+    environment:
+      - VERSION=v2
+
+  traffic-generator:
+    build: ../Generador_Trafico
+    container_name: traffic-generator
+    depends_on:
+      - cache-service
+    environment:
+      - VERSION=v2
+    volumes:
+       - ../Generador_Trafico/images:/app/images

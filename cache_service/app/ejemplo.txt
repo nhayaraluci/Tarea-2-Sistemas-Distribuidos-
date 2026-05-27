@@ -1,0 +1,58 @@
+Q1 — conteo de edificios
+{
+  "query_type": "Q1",
+  "zone_id": "Z1",
+  "confidence_min": 0.5,
+  "zone_id_a": null,
+  "zone_id_b": null,
+  "bins": 5
+}
+ Q2 — área promedio y total
+{
+  "query_type": "Q2",
+  "zone_id": "Z2",
+  "confidence_min": 0.3,
+  "zone_id_a": null,
+  "zone_id_b": null,
+  "bins": 5
+}
+ Q3 — densidad
+{
+  "query_type": "Q3",
+  "zone_id": "Z4",
+  "confidence_min": 0.7,
+  "zone_id_a": null,
+  "zone_id_b": null,
+  "bins": 5
+}
+ Q4 — comparación entre zonas
+{
+  "query_type": "Q4",
+  "zone_id": null,
+  "confidence_min": 0.4,
+  "zone_id_a": "Z1",
+  "zone_id_b": "Z3",
+  "bins": 5
+}
+ Q5 — distribución de confianza
+{
+  "query_type": "Q5",
+  "zone_id": "Z5",
+  "confidence_min": 0,
+  "zone_id_a": null,
+  "zone_id_b": null,
+  "bins": 10
+}
+
+
+ Paso 1: correr V1
+environment:
+  - VERSION=v1
+docker-compose down
+docker-compose up --build
+
+luego:
+
+http://localhost:8000/metrics
+
+ guardas resultado
