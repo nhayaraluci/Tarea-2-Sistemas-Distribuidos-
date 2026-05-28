@@ -38,7 +38,7 @@ def random_query():
         }
 
 
-def run(mode="uniform", n_requests=100):
+def run(mode="uniform", n_requests=50):
 
     print("🚦 Kafka Producer iniciado\n")
 

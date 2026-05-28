@@ -3,15 +3,33 @@ import random
 import time
 import json
 
-producer = KafkaProducer(
-    bootstrap_servers='kafka:9092',
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')
-)
+# =========================
+# 🔁 ESPERAR A KAFKA
+# =========================
+print("Esperando Kafka...")
 
+producer = None
+
+while producer is None:
+    try:
+        producer = KafkaProducer(
+            bootstrap_servers="kafka:9092",
+            value_serializer=lambda v: json.dumps(v).encode("utf-8")
+        )
+        print("Producer conectado a Kafka ✔")
+    except Exception as e:
+        print("Kafka no listo aún, reintentando...", e)
+        time.sleep(3)
+
+# =========================
+# CONFIG
+# =========================
 zones = ["Z1", "Z2", "Z3", "Z4", "Z5"]
 query_types = ["Q1", "Q2", "Q3", "Q4", "Q5"]
 
-
+# =========================
+# GENERADORES
+# =========================
 def generate_uniform():
     return {
         "query_type": random.choice(query_types),
@@ -23,7 +41,6 @@ def generate_uniform():
 
 def generate_zipf():
     weights = [0.5, 0.2, 0.15, 0.1, 0.05]
-
     zone = random.choices(zones, weights=weights)[0]
 
     return {
@@ -33,23 +50,21 @@ def generate_zipf():
         "bins": 5
     }
 
-
+# =========================
+# MAIN LOOP
+# =========================
 def run(mode="uniform"):
-
     print("🚦 Kafka Producer iniciado\n")
 
-    for i in range(600):
-
+    for i in range(50):
         query = generate_zipf() if mode == "zipf" else generate_uniform()
 
         try:
-
             producer.send("queries", query)
-
-            print(f"{i+1}/600 enviada → {query}")
+            print(f"{i+1}/50 enviada → {query}")
 
         except Exception as e:
-            print("error:", e)
+            print("error enviando:", e)
 
         time.sleep(0.1)
 
