@@ -1,6 +1,6 @@
+import os
 import time
 import requests
-import os
 
 
 def wait_for_cache():
@@ -11,13 +11,13 @@ def wait_for_cache():
     for i in range(20):
         try:
             requests.get(url, timeout=2)
-            print(" Cache listo")
+            print("Cache listo")
             return
         except Exception:
-            print(f"Intento {i+1}/20... cache aún no responde")
+            print(f"Intento {i + 1}/20... cache aún no responde")
             time.sleep(2)
 
-    print(" Cache no disponible, continúo igual (modo degradado)")
+    print("Cache no disponible, continúo igual en modo degradado")
 
 
 def load_runner():
@@ -32,13 +32,11 @@ def load_runner():
 
 
 if __name__ == "__main__":
-    print(" Traffic generator iniciado")
+    print("Traffic generator iniciado")
 
     wait_for_cache()
 
     run = load_runner()
-
-    
     mode = os.getenv("MODE", "uniform")
 
     run(mode)

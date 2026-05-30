@@ -1,20 +1,15 @@
-version: '3.8'
-
 services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
-    container_name: zookeeper
     ports:
       - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
-
   kafka:
     image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka
     depends_on:
       - zookeeper
     ports:
@@ -25,31 +20,54 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      echo "Esperando Kafka..."
+      cub kafka-ready -b kafka:9092 1 30
+
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic queries --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic queries.retry --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic queries.dlq --partitions 3 --replication-factor 1
+
+      echo "Topicos creados correctamente"
+      kafka-topics --bootstrap-server kafka:9092 --list
 
   cache-service:
     build: .
-    container_name: cache-service
     ports:
       - "8000:8000"
 
-
   response-generator:
     build: ../Consultas
-    container_name: response-generator
     ports:
       - "8001:8001"
-
+    volumes:
+      - ../Consultas/data:/data
 
   traffic-generator:
     build: ../Generador_Trafico
-    container_name: traffic-generator
+    depends_on:
+      - kafka-init
+      - cache-service
+      - response-generator
     environment:
       - VERSION=v2
+      - MODE=uniform
     volumes:
       - ../Generador_Trafico/images:/app/images
 
-
   consumer:
     build: ../consumer
-    container_name: consumer
+    depends_on:
+      - kafka-init
+      - cache-service
+      - response-generator
+    environment:
+      - MAX_RETRIES=5
+      - RETRY_DELAY_SECONDS=8
