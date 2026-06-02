@@ -25,22 +25,19 @@ consumer = KafkaConsumer(
     value_deserializer=lambda x: json.loads(x.decode("utf-8"))
 )
 
-print("🚀 MAIN CONSUMER STARTED")
+print("\nMAIN CONSUMER STARTED\n")
 
 
 def process(query):
 
-    # Fallo forzado para pruebas DLQ
     if query.get("force_fail") == "DLQ":
         raise Exception("FORCED DLQ ERROR")
 
-    # Fallo forzado para pruebas Retry
     if query.get("force_fail") == "RETRY":
         raise Exception("FORCED RETRY ERROR")
 
-    # Fallos aleatorios normales
     if random.random() < 0.1:
-        raise Exception("Random failure")
+        raise Exception("RANDOM FAILURE")
 
     resp = requests.post(
         CACHE_URL,
@@ -49,33 +46,36 @@ def process(query):
     )
 
     if resp.status_code >= 500:
-        raise Exception("Cache error")
+        raise Exception("CACHE ERROR")
 
     return resp.json()
-
 
 for msg in consumer:
     query = msg.value
 
-    print("\n==============================")
-    print("📩 QUERY:", query)
+    print("\n----------------------------------------")
+    print("NEW QUERY")
+    print(f"ID      : {query.get('query_id')}")
+    print(f"TYPE    : {query.get('query_type')}")
+    print(f"ZONE    : {query.get('zone_id')}")
+    print("----------------------------------------")
 
     try:
         process(query)
-        print("✅ SUCCESS")
+
+        print("RESULT  : SUCCESS")
 
     except Exception as e:
-        print("❌ ERROR:", e)
 
-        retry = int(query.get("_retry_count", 0))
-
-        # IMPORTANTE: incrementar contador
-        query["_retry_count"] = retry + 1
+        retry = int(query.get("_retry_count", 0)) + 1
+        query["_retry_count"] = retry
 
         producer.send("queries.retry", query)
         producer.flush()
 
-        print(f"🔁 SENT TO RETRY (count={query['_retry_count']})")
+        print("RESULT  : FAILED")
+        print(f"ERROR   : {e}")
+        print("ACTION  : SEND TO RETRY")
+        print(f"ATTEMPT : {retry}/3")
 
-    finally:
-        print("⏱ DONE")
+    print("----------------------------------------")

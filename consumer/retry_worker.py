@@ -29,67 +29,79 @@ consumer = KafkaConsumer(
     value_deserializer=lambda x: json.loads(x.decode("utf-8"))
 )
 
-print("🔁 RETRY WORKER STARTED")
+print("\nRETRY WORKER STARTED\n")
 
 
 def send_dlq(query):
+
     query = dict(query)
     query["_status"] = "DLQ"
 
     producer.send(TOPIC_DLQ, query)
     producer.flush()
 
-    print("💀 SENT TO DLQ")
-
 
 def process(query):
+
     force = query.get("force_fail")
 
-    # Fuerza envío a DLQ
     if force == "DLQ":
         raise Exception("FORCED DLQ ERROR")
 
-    # Fuerza reintentos hasta llegar a DLQ
     if force == "RETRY":
         raise Exception("FORCED RETRY ERROR")
 
-    # Procesamiento normal
-    resp = requests.post(CACHE_URL, json=query, timeout=5)
+    resp = requests.post(
+        CACHE_URL,
+        json=query,
+        timeout=5
+    )
 
     if resp.status_code >= 500:
-        raise Exception("Cache error")
+        raise Exception("CACHE ERROR")
 
     return resp.json()
 
-
 for msg in consumer:
-    query = msg.value
 
+    query = msg.value
     retry_count = int(query.get("_retry_count", 0))
 
-    print("\n==================================================")
-    print("🔁 RETRY MESSAGE")
-    print(query)
-    print(f"retry_count = {retry_count}")
-    print("==================================================")
+    print("\n----------------------------------------")
+    print("RETRY PROCESS")
+    print(f"ID      : {query.get('query_id')}")
+    print(f"TYPE    : {query.get('query_type')}")
+    print(f"ZONE    : {query.get('zone_id')}")
+    print(f"ATTEMPT : {retry_count}/3")
+    print("----------------------------------------")
 
     try:
+
         process(query)
 
-        print("✅ RETRY SUCCESS")
+        print("RESULT  : SUCCESS")
 
     except Exception as e:
-        print(f"❌ RETRY ERROR: {e}")
 
         retry_count += 1
         query["_retry_count"] = retry_count
 
+        print("RESULT  : FAILED")
+        print(f"ERROR   : {e}")
+
         if retry_count >= MAX_RETRIES:
-            print(f"💀 MAX RETRIES REACHED ({retry_count})")
+
+            print("ACTION  : SEND TO DLQ")
+            print(f"FINAL   : {retry_count}/3")
+
             send_dlq(query)
 
         else:
-            print(f"🔁 RE-RETRY -> {retry_count}")
+
+            print("ACTION  : RETRY AGAIN")
+            print(f"NEXT    : {retry_count}/3")
 
             producer.send(TOPIC_RETRY, query)
             producer.flush()
+
+    print("----------------------------------------")

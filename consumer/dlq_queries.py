@@ -9,8 +9,10 @@ KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
 consumer = None
 
 while consumer is None:
+
     try:
-        print("⏳ Connecting to Kafka...")
+
+        print("CONNECTING TO KAFKA...")
 
         consumer = KafkaConsumer(
             "queries.dlq",
@@ -21,29 +23,28 @@ while consumer is None:
             value_deserializer=lambda x: json.loads(x.decode("utf-8"))
         )
 
-        print("💀 DLQ WORKER STARTED")
+        print("DLQ WORKER STARTED")
 
     except NoBrokersAvailable:
-        print("⚠️ Kafka not ready. Retrying in 5 seconds...")
+
+        print("KAFKA NOT READY - RETRYING IN 5 SECONDS")
         time.sleep(5)
 
 for msg in consumer:
+
     query = msg.value
 
-    print("\n===================================")
-    print("💀 DLQ MESSAGE RECEIVED")
-    print("===================================")
+    print("\n" + "=" * 60)
+    print("DEAD LETTER QUEUE MESSAGE")
+    print("=" * 60)
 
-    retry_count = int(query.get("_retry_count", 0))
+    print(f"QUERY ID     : {query.get('query_id')}")
+    print(f"QUERY TYPE   : {query.get('query_type')}")
+    print(f"ZONE         : {query.get('zone_id')}")
+    print(f"RETRY COUNT  : {query.get('_retry_count')}")
+    print(f"STATUS       : {query.get('_status')}")
 
-    print(f"query_id    : {query.get('query_id')}")
-    print(f"query_type  : {query.get('query_type')}")
-    print(f"retry_count : {retry_count}")
-    print(f"force_fail  : {query.get('force_fail')}")
+    print("\nFAILED MESSAGE:")
+    print(json.dumps(query, indent=4))
 
-    if retry_count < 3:
-        print("⚠️ INVALID DLQ MESSAGE (retry_count < 3)")
-        continue
-
-    print("💀 FINAL FAILED MESSAGE")
-    print(json.dumps(query, indent=2))
+    print("=" * 60)
