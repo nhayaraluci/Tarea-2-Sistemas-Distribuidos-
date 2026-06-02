@@ -81,4 +81,21 @@ services:
   
   dlq-worker:
     build: ../consumer
-    command: python dlq_queries.py
+    command: python /app/dlq_queries.py
+    container_name: dlq-worker
+    depends_on:
+      - kafka
+
+  
+  retry-worker:
+    build: ../consumer
+    command: python retry_worker.py
+    container_name: retry-worker
+    depends_on:
+      - kafka
+      - cache-service
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - CACHE_URL=http://cache-service:8000/query
+      - MAX_RETRIES=3
+      - RETRY_DELAY_SECONDS=2
