@@ -49,6 +49,8 @@ services:
     build: .
     ports:
       - "8000:8000"
+    environment:
+      RESPONSE_URL: http://response-generator:8000/query
 
   response-generator:
     build: ../Consultas
