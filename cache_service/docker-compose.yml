@@ -50,7 +50,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      RESPONSE_URL: http://response-generator:8000/query
+       RESPONSE_URL: http://response-generator:8001/query
 
   response-generator:
     build: ../Consultas
@@ -86,16 +86,18 @@ services:
     command: python /app/dlq_queries.py
     container_name: dlq-worker
     depends_on:
-      - kafka
+      kafka-init:
+        condition: service_completed_successfully
 
-  
   retry-worker:
     build: ../consumer
     command: python retry_worker.py
     container_name: retry-worker
     depends_on:
-      - kafka
-      - cache-service
+      kafka-init:
+        condition: service_completed_successfully
+      cache-service:
+        condition: service_started
     environment:
       - KAFKA_BROKER=kafka:9092
       - CACHE_URL=http://cache-service:8000/query

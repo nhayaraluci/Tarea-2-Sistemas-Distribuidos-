@@ -27,10 +27,10 @@ def build_query(i):
     }
 
     # 🔴 DLQ garantizado
-    if i == TOTAL_MESSAGES - 1:
+    if i >= TOTAL_MESSAGES - 20:
         base.update({
-            "query_type": "Q_FAIL_DLQ",
-            "force_fail": "DLQ"
+            "query_type": "Q_FAIL_RETRY",
+            "force_fail": True
         })
         return base
 
